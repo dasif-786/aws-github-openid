@@ -43,7 +43,6 @@ jobs:
           role-to-assume: arn:aws:iam::873152457440:role/AWS-Openid-S3-Role
           role-session-name: gh-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
-          role-duration-seconds: 3600
 
       - name: Upload file to S3
         run: |
