@@ -40,7 +40,7 @@ jobs:
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::873152457440:role/AWS-Openid-S3-Role
+          role-to-assume: ${{ vars.AWS_UPLOAD_ROLE_ARN }}
           role-session-name: gh-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
