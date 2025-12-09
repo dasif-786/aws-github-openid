@@ -1,0 +1,59 @@
+name: Upload testfile to S3 (OIDC)
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # needed for OIDC to assume the AWS role
+  contents: read    # needed to checkout the code/file
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  S3_DESTINATION: ${{ vars.S3_UPLOAD_DESTINATION }} # e.g., s3://my-bucket/path/
+  FILE_TO_UPLOAD: testfile.txt
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Validate config
+        run: |
+          if [ -z "${S3_DESTINATION}" ]; then
+            echo "S3 destination not configured. Set secret S3_UPLOAD_DESTINATION (e.g., s3://bucket/prefix/)." >&2
+            exit 1
+          fi
+          if ! echo "${S3_DESTINATION}" | grep -Eq '^s3://[^/]+/.+'; then
+            echo "S3 destination must look like s3://bucket/prefix/ (with trailing slash optional)." >&2
+            exit 1
+          fi
+          if [ ! -f "${FILE_TO_UPLOAD}" ]; then
+            echo "File not found: ${FILE_TO_UPLOAD}" >&2
+            exit 1
+          fi
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_UPLOAD_ROLE_ARN }}
+          role-session-name: gh-${{ github.run_id }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-duration-seconds: 3600
+
+      - name: Upload file to S3
+        run: |
+          # Ensure single trailing slash
+          DEST="${S3_DESTINATION%/}/"
+
+          echo "Uploading ${FILE_TO_UPLOAD} to ${DEST}"
+          ls -la
+          aws s3 cp "${FILE_TO_UPLOAD}" "${DEST}" \
+            --only-show-errors \
+            --acl private \
+            --sse AES256
+
