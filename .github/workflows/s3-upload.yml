@@ -21,28 +21,20 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+      
+      - name: Validate config (pre-check)
+        run: |
+          if [ -z "${S3_DESTINATION}" ]; then
+            echo "::error::S3 destination not configured."
+            exit 1
+          fi
 
       - name: Tar files folder
         run: |
           if [ -d "files" ]; then
             tar -czf "${FILE_TO_UPLOAD}" files
           else
-            echo "Directory 'files' not found." >&2
-            exit 1
-          fi
-
-      - name: Validate config
-        run: |
-          if [ -z "${S3_DESTINATION}" ]; then
-            echo "S3 destination not configured. Set secret S3_UPLOAD_DESTINATION (e.g., s3://bucket/prefix/)." >&2
-            exit 1
-          fi
-          if ! echo "${S3_DESTINATION}" | grep -Eq '^s3://[^/]+/.+'; then
-            echo "S3 destination must look like s3://bucket/prefix/ (with trailing slash optional)." >&2
-            exit 1
-          fi
-          if [ ! -f "${FILE_TO_UPLOAD}" ]; then
-            echo "File not found: ${FILE_TO_UPLOAD}" >&2
+            echo "::error::Directory 'files' not found."
             exit 1
           fi
 
@@ -52,16 +44,10 @@ jobs:
           role-to-assume: ${{ secrets.AWS_UPLOAD_ROLE_ARN }}
           role-session-name: gh-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: true
 
       - name: Upload file to S3
         run: |
-          # Ensure single trailing slash
           DEST="${S3_DESTINATION%/}/"
-
-          echo "Uploading ${FILE_TO_UPLOAD} to ${DEST}"
-          ls -la
-          aws s3 cp "${FILE_TO_UPLOAD}" "${DEST}" \
-            --only-show-errors \
-            --acl private \
-            --sse AES256
+          aws s3 cp "${FILE_TO_UPLOAD}" "${DEST}"
 
