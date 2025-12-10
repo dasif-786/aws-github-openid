@@ -11,7 +11,7 @@ permissions:
 env:
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   S3_DESTINATION: ${{ vars.S3_UPLOAD_DESTINATION }} # e.g., s3://my-bucket/path/
-  FILE_TO_UPLOAD: testfile.txt
+  FILE_TO_UPLOAD: files.tar.gz
 
 jobs:
   upload:
@@ -21,6 +21,15 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - name: Tar files folder
+        run: |
+          if [ -d "files" ]; then
+            tar -czf "${FILE_TO_UPLOAD}" files
+          else
+            echo "Directory 'files' not found." >&2
+            exit 1
+          fi
 
       - name: Validate config
         run: |
